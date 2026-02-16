@@ -1,0 +1,214 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "Momo Hub | Be a Youtuber",
+    SubTitle = "by Momo Hub",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true, 
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    Rebirth = Window:AddTab({ Title = "Rebirth", Icon = "refresh-cw" }),
+    Shop = Window:AddTab({ Title = "Shop", Icon = "shopping-cart" }),
+    Event = Window:AddTab({ Title = "Event", Icon = "star" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+local Options = Fluent.Options
+
+-- [[ --- 1. FUNCTIONS SYSTEM --- ]]
+
+-- [ Auto Collect & Claim ]
+task.spawn(function()
+    local collectEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("collect")
+    local plotsFolder = workspace:WaitForChild("Plots")
+    while true do
+        if Options.CollectToggle and Options.CollectToggle.Value then
+            for i = 1, 6 do
+                local plot = plotsFolder:FindFirstChild(tostring(i))
+                if plot and plot:FindFirstChild("Builds") then
+                    for _, item in pairs(plot.Builds:GetChildren()) do
+                        if not Options.CollectToggle.Value then break end
+                        collectEvent:FireServer(item.Name)
+                    end
+                end
+            end
+        end
+        task.wait(Options.CollectDelaySlider and Options.CollectDelaySlider.Value or 1)
+    end
+end)
+
+task.spawn(function()
+    local events = game:GetService("ReplicatedStorage"):WaitForChild("events")
+    while true do
+        if Options.ClaimToggle and Options.ClaimToggle.Value then
+            events.uploadAll:FireServer()
+            events.claimAll:FireServer()
+        end
+        task.wait(Options.UploadDelaySlider and Options.UploadDelaySlider.Value or 10)
+    end
+end)
+
+-- [ Auto Rebirth (Updated) ]
+task.spawn(function()
+    local rebirthEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("rebirth")
+    while true do
+        if Options.AutoRebirthToggle and Options.AutoRebirthToggle.Value then
+            local mode = Options.RebirthMode.Value
+            local amount = 1
+            
+            if mode == "Inf (Required Gamepass)" then
+                amount = 999999999
+            else
+                -- แปลงค่าจาก string ใน dropdown เป็นตัวเลขโดยตรง
+                amount = tonumber(mode) or 1
+            end
+            
+            rebirthEvent:FireServer(amount)
+        end
+        task.wait(1)
+    end
+end)
+
+-- [ Auto Upgrades ]
+task.spawn(function()
+    local upgradeEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("buyUpgrade")
+    while true do
+        if Options.AutoUpgradeToggle and Options.AutoUpgradeToggle.Value then
+            for name, state in pairs(Options.UpgradeDropdown.Value) do
+                if state then upgradeEvent:FireServer(name) task.wait(0.1) end
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+-- [ Shop Functions ]
+task.spawn(function()
+    local buyEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("buyYoutuber")
+    local gearEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("buyGear")
+    local buyHouseEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("buyHouse")
+    local awards = {"Silver Award", "Gold Award", "Diamond Award", "Ruby Award", "Red Diamond Award"}
+    
+    while true do
+        -- Auto Youtubers
+        if Options.AutoBuyToggle and Options.AutoBuyToggle.Value then
+            for name, state in pairs(Options.YoutuberDropdown.Value) do
+                if state then buyEvent:FireServer(name) task.wait(0.1) end
+            end
+        end
+        -- Auto Gear
+        if Options.AutoGearToggle and Options.AutoGearToggle.Value then
+            for gearName, state in pairs(Options.GearDropdown.Value) do
+                if state then gearEvent:FireServer(gearName) task.wait(0.1) end
+            end
+        end
+        -- Auto Awards
+        if Options.AutoBuildingsToggle and Options.AutoBuildingsToggle.Value then
+            for _, awardName in ipairs(awards) do
+                buyHouseEvent:FireServer(awardName)
+                task.wait(0.1)
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+-- [ Event Functions ]
+task.spawn(function()
+    local submitEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("submitAll")
+    local eggEvent = game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("openEventEgg")
+    while true do
+        if Options.AutoSubmitToggle and Options.AutoSubmitToggle.Value then submitEvent:FireServer() end
+        if Options.AutoEggToggle and Options.AutoEggToggle.Value then
+            local mode = Options.EggModeDropdown.Value == "Open 3" and 3 or 1
+            eggEvent:FireServer(mode)
+        end
+        task.wait(5)
+    end
+end)
+
+-- [[ --- 2. UI ELEMENTS --- ]]
+
+-- [ หน้า Main ]
+local CollectSection = Tabs.Main:AddSection("Auto Collect System")
+CollectSection:AddToggle("CollectToggle", {Title = "Enable Auto Collect", Default = false })
+CollectSection:AddSlider("CollectDelaySlider", {Title = "Collect Delay", Default = 1, Min = 0.1, Max = 5, Rounding = 1})
+
+local ClaimSection = Tabs.Main:AddSection("Auto Upload & Claim System")
+ClaimSection:AddToggle("ClaimToggle", {Title = "Enable Auto Claim", Default = false })
+ClaimSection:AddSlider("UploadDelaySlider", {Title = "Claim Interval", Default = 10, Min = 2, Max = 60, Rounding = 0})
+
+local ManualSection = Tabs.Main:AddSection("Manual Actions")
+ManualSection:AddButton({Title = "Pick Up All Items", Callback = function()
+    local pickUp = game:GetService("ReplicatedStorage").events.pickUp
+    for i = 1, 6 do
+        local p = workspace.Plots:FindFirstChild(tostring(i))
+        if p and p:FindFirstChild("Builds") then
+            for _, item in pairs(p.Builds:GetChildren()) do pickUp:FireServer(item.Name) end
+        end
+    end
+    Fluent:Notify({Title = "Success", Content = "Picked up all items from Plot 1-6!", Duration = 2})
+end})
+ManualSection:AddButton({Title = "Sell All Items", Callback = function() 
+    game:GetService("ReplicatedStorage").events.sellAll:FireServer()
+    Fluent:Notify({Title = "Success", Content = "Sold all items!", Duration = 2})
+end})
+
+-- [ หน้า Rebirth (อัปเดตตัวเลือกใหม่) ]
+local RebirthSection = Tabs.Rebirth:AddSection("Rebirth Settings")
+RebirthSection:AddToggle("AutoRebirthToggle", {Title = "Enable Auto Rebirth", Default = false })
+RebirthSection:AddDropdown("RebirthMode", {
+    Title = "Select Rebirth Amount",
+    Values = {
+        "1", "3", "5", 
+        "10", "20", "35", "50", "70", "100", "175", "250", "450", "700",
+        "Inf (Required Gamepass)"
+    },
+    Default = "1"
+})
+
+local UpgradeSection = Tabs.Rebirth:AddSection("Auto Buy Upgrades")
+UpgradeSection:AddToggle("AutoUpgradeToggle", {Title = "Enable Auto Upgrade", Default = false})
+UpgradeSection:AddDropdown("UpgradeDropdown", {Title = "Select Upgrades", Values = {"luck", "rebirthButtons", "uploadTime", "views", "viralChance"}, Multi = true, Default = {}})
+
+-- [ หน้า Shop ]
+local BuySection = Tabs.Shop:AddSection("Youtuber Shop")
+local sortedYoutubers = {"Noob", "Smart Noob", "Tutorial Guy", "ItzFunny", "KreekMine", "SketchiKat", "Cleetus", "Lamb Sauce", "Low Taper Fade", "TradermasterLMAD", "Kai C-Not", "Knowledge", "Mr McRich", "IShowSlow", "Drew", "Buff Noob", "MrFeast"}
+BuySection:AddToggle("AutoBuyToggle", {Title = "Enable Auto Buy Youtubers", Default = false })
+BuySection:AddDropdown("YoutuberDropdown", {Title = "Select Youtubers", Values = sortedYoutubers, Multi = true, Default = {}})
+
+local GearSection = Tabs.Shop:AddSection("Gear Shop")
+local gearList = {"Witches Brew", "Baby Magnet", "Dusty WiFi Router", "Hot Sauce", "5G WiFi Router", "Super Magnet", "10G WiFi Router"}
+GearSection:AddToggle("AutoGearToggle", {Title = "Enable Auto Buy Gear", Default = false})
+GearSection:AddDropdown("GearDropdown", {Title = "Select Gears", Values = gearList, Multi = true, Default = {}})
+
+local BuildingsSection = Tabs.Shop:AddSection("Auto Buy Buildings (Awards)")
+BuildingsSection:AddToggle("AutoBuildingsToggle", {Title = "Enable Auto Buy All Awards", Description = "Silver -> Red Diamond", Default = false})
+
+-- [ หน้า Event ]
+local EventActionSection = Tabs.Event:AddSection("Event Automation")
+EventActionSection:AddToggle("AutoSubmitToggle", {Title = "Auto Submit All", Default = false })
+EventActionSection:AddSlider("SubmitDelaySlider", {Title = "Submit Interval", Default = 5, Min = 1, Max = 60, Rounding = 0})
+
+local EggSection = Tabs.Event:AddSection("Auto Event Egg")
+EggSection:AddToggle("AutoEggToggle", {Title = "Enable Auto Open Egg", Default = false })
+EggSection:AddDropdown("EggModeDropdown", {Title = "Select Egg Mode", Values = {"Open 1", "Open 3"}, Default = "Open 1"})
+
+-- [[ --- 3. CONFIG MANAGER --- ]]
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+InterfaceManager:SetFolder("FluentHubConfigs")
+SaveManager:SetFolder("FluentHubConfigs/game")
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+Window:SelectTab(1)
+SaveManager:LoadAutoloadConfig()
